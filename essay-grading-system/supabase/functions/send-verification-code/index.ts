@@ -104,13 +104,14 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
-    const upsertResp = await fetch(`${supabaseUrl}/rest/v1/verification_codes`, {
+    // Upsert by unique key (email)
+    const upsertResp = await fetch(`${supabaseUrl}/rest/v1/verification_codes?on_conflict=email`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'apikey': supabaseKey!,
         'Authorization': `Bearer ${supabaseKey}`,
-        'Prefer': 'resolution=merge-duplicates',
+        'Prefer': 'resolution=merge-duplicates,return=minimal',
       },
       body: JSON.stringify({
         email,
