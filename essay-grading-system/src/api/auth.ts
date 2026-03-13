@@ -12,7 +12,14 @@ export const authApi = {
       return data
     } catch (error: any) {
       console.error('发送验证码失败:', error)
-      return { success: false, error: error.message || '发送验证码失败' }
+      const msg = String(error?.message || '')
+      if (/failed to fetch/i.test(msg)) {
+        return {
+          success: false,
+          error: '网络错误：无法连接验证码服务（可能是手机网络无法访问 Supabase / 被拦截 / DNS 问题）。请切换网络或用 Safari/Chrome 重试。',
+        }
+      }
+      return { success: false, error: msg || '发送验证码失败' }
     }
   },
 
@@ -27,6 +34,10 @@ export const authApi = {
       return data.success
     } catch (error: any) {
       console.error('验证验证码失败:', error)
+      const msg = String(error?.message || '')
+      if (/failed to fetch/i.test(msg)) {
+        console.warn('网络错误：无法连接验证码验证服务（Supabase Functions）')
+      }
       return false
     }
   },
