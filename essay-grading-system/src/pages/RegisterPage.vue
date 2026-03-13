@@ -28,13 +28,13 @@
                 required
                 maxlength="6"
                 placeholder="请输入验证码"
-                class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                class="flex-1 min-w-0 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <button
                 type="button"
                 @click="handleSendCode"
                 :disabled="codeSending || countdown > 0"
-                class="px-4 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed whitespace-nowrap text-sm sm:text-base"
+                class="w-full sm:w-auto shrink-0 px-4 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed whitespace-nowrap text-sm sm:text-base"
               >
                 {{ countdown > 0 ? `${countdown}秒后重试` : codeSending ? '发送中...' : '发送验证码' }}
               </button>
