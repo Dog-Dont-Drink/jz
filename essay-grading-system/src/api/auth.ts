@@ -1,15 +1,42 @@
 import { supabase } from '../lib/supabase'
 
+function getFunctionsBaseUrl() {
+  const base = String(import.meta.env.VITE_SUPABASE_URL || '').replace(/\/$/, '')
+  if (!base) throw new Error('Missing VITE_SUPABASE_URL')
+  return `${base}/functions/v1`
+}
+
+async function invokePublicFunction(functionName: string, body: unknown) {
+  // Avoid CORS preflight on some mobile networks/browsers by using a "simple request":
+  // - no custom headers (no apikey/authorization/x-client-info)
+  // - Content-Type: text/plain (simple)
+  // Requires the function to be deployed with `--no-verify-jwt`.
+  const url = `${getFunctionsBaseUrl()}/${functionName}`
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+    body: JSON.stringify(body ?? {}),
+  })
+  const text = await resp.text().catch(() => '')
+  let json: any = null
+  try {
+    json = text ? JSON.parse(text) : null
+  } catch {
+    // ignore
+  }
+  if (!resp.ok) {
+    const msg = json?.error || json?.message || text || `HTTP ${resp.status}`
+    throw new Error(String(msg))
+  }
+  return json
+}
+
 export const authApi = {
   // 发送验证码
   async sendVerificationCode(email: string) {
     try {
-      const { data, error } = await supabase.functions.invoke('send-verification-code', {
-        body: { email },
-      })
-
-      if (error) throw error
-      return data
+      // Prefer preflight-free invoke for mobile compatibility.
+      return await invokePublicFunction('send-verification-code', { email })
     } catch (error: any) {
       console.error('发送验证码失败:', error)
       const msg = String(error?.message || '')
@@ -26,12 +53,8 @@ export const authApi = {
   // 验证验证码
   async verifyCode(email: string, code: string): Promise<boolean> {
     try {
-      const { data, error } = await supabase.functions.invoke('verify-code', {
-        body: { email, code },
-      })
-
-      if (error) throw error
-      return data.success
+      const data = await invokePublicFunction('verify-code', { email, code })
+      return !!data?.success
     } catch (error: any) {
       console.error('验证验证码失败:', error)
       const msg = String(error?.message || '')
