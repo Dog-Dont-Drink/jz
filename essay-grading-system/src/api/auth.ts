@@ -7,7 +7,8 @@ function getFunctionsBaseUrl() {
 }
 
 function getVerificationApiBaseUrl() {
-  const base = String(import.meta.env.VITE_VERIFICATION_API_BASE_URL || '').trim()
+  const runtimeBase = String(window.__APP_CONFIG__?.VERIFICATION_API_BASE_URL || '').trim()
+  const base = runtimeBase || String(import.meta.env.VITE_VERIFICATION_API_BASE_URL || '').trim()
   return base ? base.replace(/\/$/, '') : ''
 }
 

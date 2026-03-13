@@ -77,7 +77,12 @@ zip -r verify-code.zip verify-code shared node_modules package.json
 
 ## 前端接入
 
-在 `essay-grading-system` 构建时配置：
+推荐用“运行时配置”（不必每次重新 build）：
+
+- 在静态站点根目录的 `app-config.js` 里填写：
+  - `VERIFICATION_API_BASE_URL=<你的 API 网关 base url>`
+
+也支持在 `essay-grading-system` 构建时配置：
 
 - `VITE_VERIFICATION_API_BASE_URL=<你的 API 网关 base url>`
 
@@ -87,4 +92,3 @@ zip -r verify-code.zip verify-code shared node_modules package.json
 前端会请求：
 - `${base}/send-verification-code`
 - `${base}/verify-code`
-
