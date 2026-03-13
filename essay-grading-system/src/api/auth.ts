@@ -6,17 +6,28 @@ function getFunctionsBaseUrl() {
   return `${base}/functions/v1`
 }
 
-async function invokePublicFunction(functionName: string, body: unknown) {
+function getVerificationApiBaseUrl() {
+  const base = String(import.meta.env.VITE_VERIFICATION_API_BASE_URL || '').trim()
+  return base ? base.replace(/\/$/, '') : ''
+}
+
+async function invokeVerificationApi(endpointName: string, body: unknown) {
+  // If configured, call Tencent SCF (or any backend) to send/verify email codes.
+  // This avoids Supabase Auth and keeps secrets on the backend.
+  const externalBase = getVerificationApiBaseUrl()
+  const url = externalBase
+    ? `${externalBase}/${encodeURIComponent(endpointName)}`
+    : `${getFunctionsBaseUrl()}/${endpointName}`
+
   // Avoid CORS preflight on some mobile networks/browsers by using a "simple request":
   // - no custom headers (no apikey/authorization/x-client-info)
   // - Content-Type: text/plain (simple)
-  // Requires the function to be deployed with `--no-verify-jwt`.
-  const url = `${getFunctionsBaseUrl()}/${functionName}`
   const resp = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
     body: JSON.stringify(body ?? {}),
   })
+
   const text = await resp.text().catch(() => '')
   let json: any = null
   try {
@@ -35,15 +46,14 @@ export const authApi = {
   // 发送验证码
   async sendVerificationCode(email: string) {
     try {
-      // Prefer preflight-free invoke for mobile compatibility.
-      return await invokePublicFunction('send-verification-code', { email })
+      return await invokeVerificationApi('send-verification-code', { email })
     } catch (error: any) {
       console.error('发送验证码失败:', error)
       const msg = String(error?.message || '')
       if (/failed to fetch/i.test(msg)) {
         return {
           success: false,
-          error: '网络错误：无法连接验证码服务（可能是手机网络无法访问 Supabase / 被拦截 / DNS 问题）。请切换网络或用 Safari/Chrome 重试。',
+          error: '网络错误：无法连接验证码服务（可能是手机网络/浏览器拦截/DNS 问题）。请切换网络或稍后重试。',
         }
       }
       return { success: false, error: msg || '发送验证码失败' }
@@ -51,17 +61,20 @@ export const authApi = {
   },
 
   // 验证验证码
-  async verifyCode(email: string, code: string): Promise<boolean> {
+  async verifyCode(
+    email: string,
+    code: string
+  ): Promise<{ success: boolean; authUserId?: string | null; error?: string }> {
     try {
-      const data = await invokePublicFunction('verify-code', { email, code })
-      return !!data?.success
+      const data = await invokeVerificationApi('verify-code', { email, code })
+      return { success: !!data?.success, authUserId: data?.auth_user_id ?? null }
     } catch (error: any) {
       console.error('验证验证码失败:', error)
       const msg = String(error?.message || '')
       if (/failed to fetch/i.test(msg)) {
         console.warn('网络错误：无法连接验证码验证服务（Supabase Functions）')
       }
-      return false
+      return { success: false, error: msg || '验证失败' }
     }
   },
 
@@ -69,9 +82,12 @@ export const authApi = {
   async register(email: string, password: string, verificationCode: string) {
     try {
       // 验证验证码
-      const isValid = await this.verifyCode(email, verificationCode)
-      if (!isValid) {
-        throw new Error('验证码错误或已过期')
+      const verify = await this.verifyCode(email, verificationCode)
+      if (!verify.success) throw new Error(verify.error || '验证码错误或已过期')
+
+      const authUserId = verify.authUserId
+      if (authUserId && typeof authUserId !== 'string') {
+        throw new Error('验证码验证返回异常（auth_user_id）')
       }
 
       // 检查邮箱是否已存在
@@ -92,6 +108,7 @@ export const authApi = {
       const { data, error } = await supabase
         .from('users')
         .insert({
+          ...(authUserId ? { id: authUserId } : {}),
           email,
           password_hash: passwordHash,
           daily_check_count: 0,

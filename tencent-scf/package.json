@@ -1,0 +1,9 @@
+{
+  "name": "tencent-scf-email-verification",
+  "private": true,
+  "type": "commonjs",
+  "dependencies": {
+    "nodemailer": "^6.10.1"
+  }
+}
+

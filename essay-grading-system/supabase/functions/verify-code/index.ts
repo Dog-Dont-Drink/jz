@@ -1,9 +1,23 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
+
+function getSupabaseAuthClient() {
+  const url = String(Deno.env.get('SUPABASE_URL') || '').trim()
+  const key = String(
+    Deno.env.get('SUPABASE_ANON_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+  ).trim()
+  if (!url || !key) {
+    throw new Error('Missing SUPABASE_URL / SUPABASE_ANON_KEY (or SUPABASE_SERVICE_ROLE_KEY) in function secrets')
+  }
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  })
 }
 
 serve(async (req) => {
@@ -37,82 +51,24 @@ serve(async (req) => {
       )
     }
 
-    // 从 Supabase 查询验证码
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-
-    const response = await fetch(
-      `${supabaseUrl}/rest/v1/verification_codes?email=eq.${email}&select=*`,
-      {
-        headers: {
-          'apikey': supabaseKey!,
-          'Authorization': `Bearer ${supabaseKey}`,
-        },
-      }
-    )
-
-    const data = await response.json()
-
-    if (!data || data.length === 0) {
-      return new Response(
-        JSON.stringify({ success: false, error: '验证码不存在或已过期' }),
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            ...corsHeaders,
-          },
-        }
-      )
-    }
-
-    const stored = data[0]
-
-    // 检查是否过期
-    if (new Date(stored.expires_at) < new Date()) {
-      // 删除过期验证码
-      await fetch(`${supabaseUrl}/rest/v1/verification_codes?email=eq.${email}`, {
-        method: 'DELETE',
-        headers: {
-          'apikey': supabaseKey!,
-          'Authorization': `Bearer ${supabaseKey}`,
-        },
-      })
-
-      return new Response(
-        JSON.stringify({ success: false, error: '验证码已过期' }),
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            ...corsHeaders,
-          },
-        }
-      )
-    }
-
-    // 验证验证码
-    if (stored.code !== code) {
-      return new Response(
-        JSON.stringify({ success: false, error: '验证码错误' }),
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            ...corsHeaders,
-          },
-        }
-      )
-    }
-
-    // 验证成功，删除验证码
-    await fetch(`${supabaseUrl}/rest/v1/verification_codes?email=eq.${email}`, {
-      method: 'DELETE',
-      headers: {
-        'apikey': supabaseKey!,
-        'Authorization': `Bearer ${supabaseKey}`,
-      },
+    const supabase = getSupabaseAuthClient()
+    const { data, error } = await supabase.auth.verifyOtp({
+      email,
+      token: String(code),
+      type: 'email',
     })
+    if (error) {
+      return new Response(JSON.stringify({ success: false, error: error.message || '验证码错误或已过期' }), {
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      })
+    }
 
     return new Response(
-      JSON.stringify({ success: true, message: '验证成功' }),
+      JSON.stringify({
+        success: true,
+        message: '验证成功',
+        auth_user_id: data?.user?.id ?? null,
+      }),
       {
         headers: {
           'Content-Type': 'application/json',
