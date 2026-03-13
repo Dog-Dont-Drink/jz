@@ -14,8 +14,15 @@ serve(async (req) => {
     })
   }
 
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ success: false, error: 'Method not allowed. Use POST with JSON body: { "email": "...", "code": "......" }' }), {
+      status: 405,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    })
+  }
+
   try {
-    const { email, code } = await req.json()
+    const { email, code } = await req.json().catch(() => ({}))
 
     if (!email || !code) {
       return new Response(
