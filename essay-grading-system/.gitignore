@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Legacy built assets (do not commit; use `dist/` output for deployment)
+assets/
+
 # Environment variables
 .env
 .env.local
