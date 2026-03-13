@@ -16,6 +16,7 @@ pass
 # Build outputs
 dist/
 **/dist/
+essay-grading-system/assets/
 
 # Dependencies
 node_modules/
@@ -27,3 +28,8 @@ node_modules/
 __pycache__/
 *.pyc
 
+# Local scratch files in this workspace
+img.jpg
+test.py
+unnamed.json
+未命名文件夹/
