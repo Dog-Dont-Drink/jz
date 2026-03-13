@@ -1,0 +1,19 @@
+# Frontend
+node_modules/
+dist/
+.vite/
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Python caches (repo-root scripts)
+__pycache__/
+*.pyc
+
