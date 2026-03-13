@@ -21,17 +21,28 @@ function maskEmail(email: string) {
 async function sendEmailViaSmtp2Go(to: string, code: string) {
   // Supabase Edge Functions cannot reliably send SMTP directly; use an HTTP email provider.
   // SMTP2GO API expects an API key and a verified sender.
-  const apiKey = Deno.env.get('SMTP2GO_API_KEY') || Deno.env.get('EMAIL_PASSWORD')
-  const sender = Deno.env.get('SMTP2GO_SENDER') || Deno.env.get('EMAIL_USER')
+  const apiKeyRaw = Deno.env.get('SMTP2GO_API_KEY') || Deno.env.get('EMAIL_PASSWORD')
+  const senderRaw = Deno.env.get('SMTP2GO_SENDER') || Deno.env.get('EMAIL_USER')
+  const apiKey = String(apiKeyRaw || '').trim()
+  const sender = String(senderRaw || '').trim()
 
   if (!apiKey || !sender) {
-    throw new Error('邮件服务未配置：请设置 SMTP2GO_API_KEY 和 SMTP2GO_SENDER（或兼容变量 EMAIL_PASSWORD/EMAIL_USER）')
+    throw new Error(
+      '邮件服务未配置：请在 Supabase secrets 设置 SMTP2GO_API_KEY 和 SMTP2GO_SENDER（或兼容变量 EMAIL_PASSWORD/EMAIL_USER）'
+    )
+  }
+  if (!/^api-[A-Za-z0-9]{32}$/.test(apiKey)) {
+    throw new Error(
+      `SMTP2GO_API_KEY 格式不正确（应形如 api-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx）。当前长度=${apiKey.length}`
+    )
   }
 
   const response = await fetch('https://api.smtp2go.com/v3/email/send', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      // Some SMTP2GO environments require header auth; we send both header + payload.
+      'X-Smtp2go-Api-Key': apiKey,
     },
     body: JSON.stringify({
       api_key: apiKey,
