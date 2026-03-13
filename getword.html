@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>申论智能评分系统 - 操作手册生成器</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @media print {
+      .print\:hidden { display: none !important; }
+      .print\:shadow-none { box-shadow: none !important; }
+      .print\:border-gray-300 { border-color: #d1d5db !important; }
+      .print\:bg-gray-300 { background-color: #d1d5db !important; }
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 font-sans text-slate-900 pb-20">
+
+  <!-- Header -->
+  <header class="bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-50 print:hidden">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+      <div class="flex items-center gap-3">
+        <div class="bg-blue-600 p-2 rounded-xl">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+            <line x1="12" y1="18" x2="12.01" y2="18"></line>
+          </svg>
+        </div>
+        <h1 class="text-xl font-bold text-slate-800">操作手册生成器</h1>
+      </div>
+      <button
+        onclick="window.print()"
+        class="flex items-center gap-2 px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-full font-medium transition-all shadow-md hover:shadow-lg active:scale-95"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <polyline points="6 9 6 2 18 2 18 9"></polyline>
+          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+          <rect x="6" y="14" width="12" height="8"></rect>
+        </svg>
+        打印 / 导出PDF
+      </button>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-6 py-12">
+    <div class="text-center mb-12 max-w-2xl mx-auto">
+      <h2 class="text-3xl md:text-4xl font-extrabold text-slate-900 mb-4 tracking-tight">申论智能评分系统</h2>
+      <p class="text-lg text-slate-600 font-medium">操作手册与使用指南</p>
+
+
+    </div>
+
+    <div id="phone-cards" class="flex flex-wrap justify-center gap-x-8 gap-y-10">
+      <!-- Phone cards will be generated here -->
+    </div>
+  </main>
+
+  <script>
+    const steps = [
+      {
+        id: 1,
+        title: '第一步：注册邮箱登录',
+        description: '打开APP，点击"立即登录"或"注册账号"，使用您的邮箱完成注册并登录系统。',
+      },
+      {
+        id: 2,
+        title: '第二步：选择题目',
+        description: '进入主页面（题库），浏览并选择您需要练习的申论题目，点击进入作答环节。',
+      },
+      {
+        id: 3,
+        title: '第三步：上传答案',
+        description: '将写好的答案拍照上传。也可以选择手动输入（注：拍照识别准确度受字迹影响，可能存在误差）。',
+      },
+      {
+        id: 4,
+        title: '第四步：核对与修改文字',
+        description: '系统会自动进行OCR识别。请仔细核对后台识别出的手写文字，没有识别到位的错漏字需要手动修改完善。',
+      },
+      {
+        id: 5,
+        title: '第五步：提交评分生成报告',
+        description: '确认文字无误后，点击"提交评分"。系统将自动生成详细的答案审核报告，包含得分与解析。',
+      }
+    ];
+
+    const images = {};
+
+    function handleImageUpload(id, file) {
+      const url = URL.createObjectURL(file);
+      images[id] = url;
+      renderPhoneCards();
+    }
+
+    function createPhoneCard(step) {
+      const image = images[step.id];
+      const stepTitle = step.title.split('：')[1];
+
+      return `
+        <div class="flex flex-col items-center">
+          <div class="relative border-slate-800 bg-slate-800 border-[6px] rounded-[2rem] h-[400px] w-[200px] shadow-xl overflow-hidden group print:shadow-none print:border-gray-300">
+            <!-- Notch -->
+            <div class="w-[80px] h-[18px] bg-slate-800 top-0 rounded-b-[0.75rem] left-1/2 -translate-x-1/2 absolute z-20 print:bg-gray-300"></div>
+
+            <!-- Image -->
+            ${image ?
+              `<img src="${image}" alt="${step.title}" class="w-full h-full object-cover" />` :
+              `<div class="w-full h-full bg-slate-100 flex flex-col items-center justify-center p-4 text-center text-slate-400">
+                <svg class="w-8 h-8 mb-2 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+                  <line x1="12" y1="18" x2="12.01" y2="18"></line>
+                </svg>
+                <p class="text-xs font-medium">点击上传<br/>第 ${step.id} 步截图</p>
+              </div>`
+            }
+
+            <!-- Text Overlay -->
+            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-slate-900 via-slate-900/90 to-transparent p-4 pt-16 text-white z-10">
+              <div class="flex items-center gap-1.5 mb-2">
+                <span class="bg-blue-500 text-white text-[10px] font-black px-2 py-0.5 rounded-lg shadow-sm">
+                  0${step.id}
+                </span>
+                <h3 class="font-bold text-sm tracking-wide">${stepTitle}</h3>
+              </div>
+              <p class="text-xs text-slate-200 leading-relaxed opacity-90">
+                ${step.description}
+              </p>
+            </div>
+
+            <!-- Upload Button Overlay -->
+            <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm flex flex-col items-center justify-center transition-opacity duration-300 z-30 ${image ? 'opacity-0 group-hover:opacity-100' : 'opacity-100'} print:hidden">
+              <label class="cursor-pointer flex flex-col items-center justify-center w-full h-full">
+                <div class="bg-white/20 p-3 rounded-full backdrop-blur-md mb-2 hover:scale-110 transition-transform shadow-lg">
+                  <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                  </svg>
+                </div>
+                <span class="text-white text-sm font-medium px-4 py-2 bg-blue-600 rounded-full shadow-xl hover:bg-blue-500 transition-colors">
+                  ${image ? '更换截图' : '上传截图'}
+                </span>
+                <input
+                  type="file"
+                  class="hidden"
+                  accept="image/*"
+                  onchange="handleFileChange(${step.id}, this)"
+                />
+              </label>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderPhoneCards() {
+      const container = document.getElementById('phone-cards');
+      container.innerHTML = steps.map(step => createPhoneCard(step)).join('');
+    }
+
+    function handleFileChange(id, input) {
+      if (input.files && input.files[0]) {
+        handleImageUpload(id, input.files[0]);
+      }
+    }
+
+    // Initial render
+    renderPhoneCards();
+  </script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+.DS_Store
+
+# Secrets / local config
+.env
+.env.*
+!.env.example
+pass
+
+# Editors
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Build outputs
+dist/
+**/dist/
+
+# Dependencies
+node_modules/
+
+# Supabase local state
+**/.supabase/
+
+# Python
+__pycache__/
+*.pyc
+
