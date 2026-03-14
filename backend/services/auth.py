@@ -7,6 +7,7 @@ from .db import get_conn
 from .utils import now_iso, today_utc_date_str, new_uuid, new_token
 from .security import new_salt, hash_password, verify_password
 from .email_service import send_code_email
+from config import get_daily_check_limit
 
 
 EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
@@ -123,10 +124,11 @@ def register_user(email: str, password: str, code: str):
     salt = new_salt()
     pw_hash = hash_password(password, salt)
     user_id = new_uuid()
+    daily_limit = get_daily_check_limit()
     conn.execute(
       "INSERT INTO users(id, email, password_salt, password_hash, daily_check_count, daily_check_limit, last_check_date, created_at) "
       "VALUES(?,?,?,?,?,?,?,?)",
-      (user_id, email, salt, pw_hash, 0, 2, today_utc_date_str(), now_iso()),
+      (user_id, email, salt, pw_hash, 0, daily_limit, today_utc_date_str(), now_iso()),
     )
     conn.execute("DELETE FROM verification_codes WHERE email=?", (email,))
     session_token = _create_session(conn, user_id)
@@ -150,6 +152,13 @@ def login_user(email: str, password: str):
       return _fail("用户不存在")
     if not verify_password(password, user["password_salt"], user["password_hash"]):
       return _fail("密码错误")
+    configured_limit = get_daily_check_limit()
+    try:
+      if int(user["daily_check_limit"] or 0) != configured_limit:
+        conn.execute("UPDATE users SET daily_check_limit=? WHERE id=?", (configured_limit, user["id"]))
+        user = conn.execute("SELECT * FROM users WHERE id=?", (user["id"],)).fetchone()
+    except Exception:
+      pass
     session_token = _create_session(conn, user["id"])
     info = {
       "id": user["id"],
@@ -168,6 +177,13 @@ def get_user_by_session(session_token: str):
     row = _get_user_by_token(conn, session_token)
     if not row:
       return _fail("未登录或会话已过期")
+    configured_limit = get_daily_check_limit()
+    try:
+      if int(row["daily_check_limit"] or 0) != configured_limit:
+        conn.execute("UPDATE users SET daily_check_limit=? WHERE id=?", (configured_limit, row["id"]))
+        row = conn.execute("SELECT * FROM users WHERE id=?", (row["id"],)).fetchone()
+    except Exception:
+      pass
     user = {
       "id": row["id"],
       "email": row["email"],
@@ -184,11 +200,21 @@ def _refresh_daily_if_needed(conn, user_id: str):
   row = conn.execute("SELECT daily_check_count, daily_check_limit, last_check_date FROM users WHERE id=?", (user_id,)).fetchone()
   if not row:
     raise Exception("用户不存在")
+  configured_limit = get_daily_check_limit()
   last_date = row["last_check_date"] or ""
   if last_date != today:
-    conn.execute("UPDATE users SET daily_check_count=0, last_check_date=? WHERE id=?", (today, user_id))
-    return 0, int(row["daily_check_limit"])
-  return int(row["daily_check_count"]), int(row["daily_check_limit"])
+    conn.execute(
+      "UPDATE users SET daily_check_count=0, daily_check_limit=?, last_check_date=? WHERE id=?",
+      (configured_limit, today, user_id),
+    )
+    return 0, configured_limit
+
+  current_limit = int(row["daily_check_limit"] or 0)
+  if current_limit != configured_limit:
+    conn.execute("UPDATE users SET daily_check_limit=? WHERE id=?", (configured_limit, user_id))
+    current_limit = configured_limit
+
+  return int(row["daily_check_count"]), current_limit
 
 
 def check_daily_limit(session_token: str):

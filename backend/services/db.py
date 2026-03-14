@@ -37,7 +37,7 @@ def init_db() -> None:
         password_salt TEXT NOT NULL,
         password_hash TEXT NOT NULL,
         daily_check_count INTEGER NOT NULL DEFAULT 0,
-        daily_check_limit INTEGER NOT NULL DEFAULT 2,
+        daily_check_limit INTEGER NOT NULL DEFAULT 5,
         last_check_date TEXT,
         created_at TEXT NOT NULL
       );

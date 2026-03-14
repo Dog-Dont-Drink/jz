@@ -156,6 +156,32 @@
         </p>
       </div>
 
+      <!-- Reference Answer -->
+      <div v-if="referenceOutlineBlocks.length || referenceAnswer" class="bg-white rounded-lg shadow-sm p-4 mb-4">
+        <h3 class="font-semibold text-gray-800 mb-2">标注答案</h3>
+        <p class="text-gray-500 text-sm mb-4">可结合命中点、漏点和下方标注答案，对照查看与参考作答的差距。</p>
+
+        <div v-if="referenceOutlineBlocks.length" class="mb-4">
+          <h4 class="text-sm font-medium text-gray-800 mb-2">答案要点</h4>
+          <div class="space-y-3 text-sm">
+            <div v-for="(block, index) in referenceOutlineBlocks" :key="index">
+              <div v-if="block.title" class="font-medium text-gray-800 mb-1">{{ block.title }}</div>
+              <ul v-if="block.items?.length" class="list-disc pl-5 space-y-1 text-gray-700">
+                <li v-for="(item, itemIndex) in block.items" :key="itemIndex">{{ item }}</li>
+              </ul>
+              <p v-else-if="block.text" class="text-gray-700 leading-relaxed whitespace-pre-wrap">{{ block.text }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="referenceAnswer" class="border-t border-gray-100 pt-4">
+          <h4 class="text-sm font-medium text-gray-800 mb-2">参考全文</h4>
+          <p class="text-gray-700 leading-relaxed whitespace-pre-wrap text-sm">
+            {{ referenceAnswer }}
+          </p>
+        </div>
+      </div>
+
       <!-- OCR Text if different -->
       <div v-if="submission.ocr_text && submission.ocr_text !== submission.final_user_text" class="bg-gray-50 rounded-lg p-4 mb-4">
         <h3 class="font-semibold text-gray-700 mb-2 text-sm">原始 OCR 识别</h3>
@@ -191,6 +217,7 @@ const grade = ref<EssayGrade | null>(null)
 const loading = ref(false)
 const error = ref('')
 
+type OutlineBlock = { title?: string; items?: string[]; text?: string }
 type MatchedPoint = { point: string; score?: number | null; reason?: string }
 type MissedPoint = { point: string; reason?: string }
 type DeductionPoint = { issue: string; deduct_score?: number | null; reason?: string }
@@ -261,10 +288,61 @@ function normalizeSuggestions(raw: any): string[] {
   return arr.map((x) => asString(x)).map((s) => s.trim()).filter(Boolean)
 }
 
+function normalizeOutline(raw: any): OutlineBlock[] {
+  if (!raw) return []
+
+  let data = raw
+  if (typeof raw === 'string') {
+    const s = raw.trim()
+    if (!s) return []
+    if (s.startsWith('[') || s.startsWith('{')) {
+      try {
+        data = JSON.parse(s)
+      } catch {
+        return [{ text: raw }]
+      }
+    } else {
+      return [{ text: raw }]
+    }
+  }
+
+  if (Array.isArray(data)) {
+    if (data.every((x) => typeof x === 'string')) {
+      return [{ items: data.map((x) => String(x)) }]
+    }
+    if (data.every((x) => x && typeof x === 'object')) {
+      const blocks: OutlineBlock[] = []
+      for (const item of data) {
+        const title = asString(item.type || item.title || '').trim()
+        const items = Array.isArray(item.items) ? item.items.map((child: any) => asString(child)).filter(Boolean) : []
+        if (title || items.length) {
+          blocks.push({ title: title || undefined, items })
+          continue
+        }
+        const text = asString(item.text || item.point || item.content || '')
+        if (text) blocks.push({ text })
+      }
+      return blocks
+    }
+    return [{ text: asString(data) }]
+  }
+
+  if (data && typeof data === 'object') {
+    const title = asString(data.type || data.title || '').trim()
+    const items = Array.isArray(data.items) ? data.items.map((item: any) => asString(item)).filter(Boolean) : []
+    if (title || items.length) return [{ title: title || undefined, items }]
+    return [{ text: asString(data) }]
+  }
+
+  return [{ text: asString(data) }]
+}
+
 const matchedPoints = computed(() => normalizeMatchedPoints(grade.value?.matched_points))
 const missedPoints = computed(() => normalizeMissedPoints(grade.value?.missed_points))
 const deductionPoints = computed(() => normalizeDeductionPoints(grade.value?.deduction_points))
 const improvementSuggestions = computed(() => normalizeSuggestions(grade.value?.improvement_suggestions))
+const referenceAnswer = computed(() => asString(submission.value?.question?.standard_answer).trim())
+const referenceOutlineBlocks = computed(() => normalizeOutline(submission.value?.question?.answer_outline))
 
 const loadResult = async () => {
   loading.value = true
