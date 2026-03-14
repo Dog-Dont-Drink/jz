@@ -226,7 +226,11 @@ const handleSubmit = async () => {
       }
       router.push({ name: 'grade-result', params: { submissionId: submission.value.id } })
     } else {
-      throw new Error(result.error || '评分失败')
+      const raw = String(result?.raw || '').trim()
+      const rawHint = raw
+        ? `\n\n原始返回片段：\n${raw.slice(0, 600)}${raw.length > 600 ? '\n...' : ''}`
+        : ''
+      throw new Error((result.error || '评分失败') + rawHint)
     }
   } catch (err: any) {
     console.error('Submit error:', err)
